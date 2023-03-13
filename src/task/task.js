@@ -1,116 +1,114 @@
 import React from 'react'
 import './task.css'
-import PropTypes from 'prop-types'
 import { formatDistanceToNow } from 'date-fns'
+import PropTypes from 'prop-types'
 
-class Task extends React.Component {
-  state = {
-    time: 0,
-    timerInterval: 0,
-    formattedTime: '00:00:00',
-  }
+export default class Task extends React.Component {
   static propTypes = {
-    label: PropTypes.string,
-    done: PropTypes.bool,
     filtered: PropTypes.bool,
-    onDeleted: PropTypes.func,
-    onToggleDone: PropTypes.func,
-    created: PropTypes.object,
+    completingTask: PropTypes.func,
+    completed: PropTypes.bool,
+    description: PropTypes.string,
+    deletingTask: PropTypes.func,
+    min: PropTypes.number,
+    sec: PropTypes.number,
   }
 
   static defaultProps = {
-    label: 'Task',
-    done: false,
+    description: 'text',
     filtered: false,
-    onDeleted: () => {},
-    onToggleDone: () => {},
+    completed: false,
     created: new Date(),
+    id: 1,
   }
 
-  updateTimer = async () => {
-    const newTime = this.state.time + 1
-    await this.setState(() => {
-      return {
-        time: newTime,
+  state = {
+    min: this.props.min,
+    sec: this.props.sec,
+    timer: null,
+    formattedTime: '00:00:00',
+  }
+
+  startTimer = () => {
+    if (!this.state.timer) {
+      console.log(this.state.min, this.state.sec)
+      let totalSeconds = this.state.min * 60 + this.state.sec
+      if (totalSeconds <= 0) {
+        this.pauseTimer()
+        return
       }
-    })
-    const hours = Math.floor(this.state.time / 3600)
-    const minutes = Math.floor((this.state.time % 3600) / 60)
-    const seconds = this.state.time % 60
-    const newFormattedTime = `${this.pad(hours)}:${this.pad(minutes)}:${this.pad(seconds)}`
-    this.setState({
-      formattedTime: newFormattedTime,
-    })
-  }
-
-  startTimer = async () => {
-    if (!this.state.timerInterval) {
-      const newTimerInterval = setInterval(this.updateTimer, 1000)
-      await this.setState(() => {
-        return {
-          timerInterval: newTimerInterval,
+      const newTimer = setInterval(() => {
+        if (this.state.min * 60 + this.state.sec <= 0) {
+          this.pauseTimer()
+          return
         }
-      })
+        if (this.state.sec >= 1) {
+          this.setState(() => {
+            return {
+              sec: this.state.sec - 1,
+            }
+          })
+        } else {
+          this.setState(() => {
+            return {
+              min: this.state.min - 1,
+              sec: this.state.sec + 59,
+            }
+          })
+        }
+      }, 1000)
+      this.setState({ timer: newTimer })
     }
   }
 
   pauseTimer = () => {
-    clearInterval(this.state.timerInterval)
-    this.setState({ timerInterval: 0 })
+    if (this.state.timer) {
+      clearInterval(this.state.timer)
+    }
   }
 
-  resetTimer = () => {
-    clearInterval(this.state.timerInterval)
-    this.setState({ time: 0, timerInterval: 0, formattedTime: '00:00:00' })
-  }
-
-  pad = (number) => {
-    if (number < 10) {
-      return `0${number}`
+  pad = (val) => {
+    let valString = val + ''
+    if (valString.length < 2) {
+      return '0' + valString
     } else {
-      return number
+      return valString
     }
   }
 
   render() {
-    const { label, created, done, filtered, onDeleted, onToggleDone } = this.props
+    const { completingTask, completed, filtered } = this.props
+    const checked = completed
+    let classNamesTask = 'task'
 
-    let className = 'view'
-    let checked = false
-
-    if (done) {
-      className += ' completed'
-      checked = true
+    if (completed) {
+      classNamesTask += ' completed'
     }
 
     if (filtered) {
-      className += ' filtered'
+      classNamesTask += ' filtered'
     }
 
+    const { description, created, deletingTask } = this.props
+
     return (
-      <li className={className}>
-        <input onClick={onToggleDone} className="toggle" type="checkbox" checked={checked} readOnly />
+      <div className={classNamesTask}>
+        <input className="toggle" type="checkbox" onChange={completingTask} checked={checked} />
         <label>
-          <span className="description">{label}</span>
-          <div>
-            <p id="timer">{this.state.formattedTime}</p>
-            <button id="startBtn" className="icon-timer icon-start" onClick={() => this.startTimer()}>
-              Старт
-            </button>
-            <button id="pauseBtn" className="icon-timer icon-pause" onClick={() => this.pauseTimer()}>
-              Пауза
-            </button>
-            <button id="resetBtn" className="icon-timer icon-reset" onClick={() => this.resetTimer()}>
-              Сбросить
-            </button>
+          <span className="description" onClick={completingTask}>
+            {description}
+          </span>
+          <div className="timer">
+            <p id="timer">{`${this.pad(this.state.min)}:${this.pad(this.state.sec)}`}</p>
+            <button id="startBtn" className="icon-timer icon-start" onClick={() => this.startTimer()} />
+            <button id="pauseBtn" className="icon-timer icon-pause" onClick={() => this.pauseTimer()} />
           </div>
-          <span className="created">Created {formatDistanceToNow(created)} ago</span>
+          <span className="created">{formatDistanceToNow(created)} ago</span>
         </label>
         <button className="icon icon-edit"></button>
-        <button className="icon icon-destroy" onClick={onDeleted}></button>
-      </li>
+        <button className="icon icon-destroy" onClick={deletingTask}></button>
+        <input type="text" className="edit" />
+      </div>
     )
   }
 }
-
-export default Task
